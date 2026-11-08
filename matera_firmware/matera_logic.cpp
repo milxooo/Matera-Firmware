@@ -87,6 +87,8 @@ bool validarUrlBackend(const std::string& entrada, std::string& salida) {
 
 std::string payloadQr(const std::string& mac12, const std::string& codigo) { return "MAT:" + mac12 + ":" + codigo; }
 
+bool payloadQrCabe(const std::string& payload) { return !payload.empty() && payload.size() <= QR_MAX_BYTES; }
+
 AccionActivacion decidirActivacion(int codigoHttp) {
   if (codigoHttp <= 0) return AccionActivacion::Reintentar;
   if (codigoHttp == 200) return AccionActivacion::GuardarToken;

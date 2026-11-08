@@ -42,6 +42,10 @@ static void test_payload_qr() {
   const std::string p = payloadQr("246F28AB1234", "f6dd13792403");
   assert(p == "MAT:246F28AB1234:f6dd13792403");
   assert(p.size() == 29);
+  assert(payloadQrCabe(p));
+  assert(payloadQrCabe(std::string(32, 'a')));
+  assert(!payloadQrCabe(std::string(33, 'a')));  // la biblioteca no lo rechazaria sola
+  assert(!payloadQrCabe(""));
 }
 
 static void test_mac() {

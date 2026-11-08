@@ -35,6 +35,11 @@ bool validarUrlBackend(const std::string& entrada, std::string& salida);
 // Contenido del QR: MAT:<MAC12>:<CODIGO> (el código tal cual, en minúsculas).
 std::string payloadQr(const std::string& mac12, const std::string& codigo);
 
+// Capacidad en modo byte de un QR versión 2 con corrección de errores L. La biblioteca QRCode
+// NO valida la capacidad (con más bytes "tiene éxito" sin avisar), así que se comprueba antes.
+constexpr size_t QR_MAX_BYTES = 32;
+bool payloadQrCabe(const std::string& payload);
+
 // Qué hacer según el resultado de POST /dispositivos/activar.
 // codigoHttp <= 0 es un error de red (HTTPClient devuelve negativos).
 enum class AccionActivacion { GuardarToken, Reintentar, ErrorCodigoInvalido, ErrorFormato, ErrorInesperado };

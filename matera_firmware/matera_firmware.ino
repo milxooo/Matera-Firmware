@@ -5,14 +5,16 @@
 #include "matera_console.h"
 #include "matera_device.h"
 #include "matera_display.h"
+#include "matera_display_oled.h"
 #include "matera_logic.h"
 #include "matera_red.h"
 #include "matera_storage.h"
 
 using namespace matera;
 
-static PantallaSerial pantallaSerial;
-static Pantalla* pantalla = &pantallaSerial;
+// Si la OLED no responde, PantallaOled cae a Serial y el arranque no se cuelga.
+static PantallaOled pantallaOled;
+static Pantalla* pantalla = &pantallaOled;
 
 static Estado estadoActual = Estado::SinCodigo;
 static std::string mac12;
@@ -27,7 +29,7 @@ static void cambiarEstado(Estado nuevo) {
   Serial.printf("Estado: %s\n", nombreEstado(nuevo));
   switch (nuevo) {
     case Estado::SinCodigo: pantalla->mostrarEstado("Falta codigo\n(setcode por Serial)"); break;
-    case Estado::Provisioning: pantalla->mostrarEstado("Emparejando..."); break;
+    case Estado::Provisioning: break;  // la pantalla muestra el QR (se dibuja en entrarEnProvisioning)
     case Estado::Conectando: pantalla->mostrarEstado("Conectando WiFi"); break;
     case Estado::Activando: pantalla->mostrarEstado("Activando..."); break;
     case Estado::Operativo: pantalla->mostrarEstado("Operativo"); break;
@@ -44,6 +46,8 @@ static void entrarEnConectando() {
 static void entrarEnProvisioning() {
   cambiarEstado(Estado::Provisioning);
   red::iniciarProvisioning(almacen::codigo(), mac12);
+  // El QR solo se muestra en este estado: MAT:<MAC12>:<CODIGO> (codigo en minusculas, tal cual).
+  pantalla->mostrarQr(payloadQr(mac12, almacen::codigo()).c_str());
   Serial.println("Da el WiFi con la app 'ESP BLE Provisioning' (PoP = codigo de emparejamiento).");
 }
 

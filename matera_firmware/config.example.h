@@ -20,6 +20,9 @@
 #define OLED_I2C_ADDR 0x3C
 #define OLED_ANCHO 128
 #define OLED_ALTO 64
+// 0 = SSD1306 (por defecto), 1 = SH1106 (muchos modulos genericos de 0.96" lo son: si la imagen
+// sale corrida 2 pixeles, con una franja de ruido o cortada, cambia a 1).
+#define OLED_ES_SH1106 0
 
 // --- Reset de emparejamiento ---
 #define PIN_BOTON_RESET 0       // BOOT (GPIO0); activo en nivel bajo
