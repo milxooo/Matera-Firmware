@@ -1,0 +1,12 @@
+# Configuración local (IP del backend, banderas de depuración)
+config.h
+matera_firmware/config.h
+
+# Grafo de conocimiento y artefactos de compilación
+graphify-out/
+build/
+*.bin
+*.elf
+
+# Pruebas en el PC
+tests/build/
