@@ -11,21 +11,18 @@ ESP32 del flujo de vinculación con el backend (`Matera`, repositorio aparte):
 
 Fuera de alcance por ahora: lectura de sensores y telemetría, OTA, HTTPS, bajo consumo.
 
-> **Estado de verificación.** El código **compila** para `esp32:esp32:esp32s3` (core 3.3.12) y la
-> lógica pura pasa sus pruebas en el PC. **Nada se ha probado todavía en la placa real**: usa la
-> "Guía de prueba con la placa" más abajo.
 
 ## Hardware
 
 | Elemento | Detalle |
 |---|---|
 | Placa | ESP32-S3 **N16R8** (16 MB flash, 8 MB PSRAM octal) |
-| Pantalla | OLED 0.96" I2C, se asume **SSD1306 128x64, dirección 0x3C** (no verificado) |
+| Pantalla | OLED 0.96" I2C, se asume **SSD1306 128x64, dirección 0x3C** |
 | Conexión OLED | VCC→VCC, GND→GND, **SDA→GPIO 8, SCL→GPIO 9** (no chocan con la PSRAM octal, GPIO 35 a 37) |
 | Botón de reset | **BOOT (GPIO0)**, mantenido 5 s |
-| Red | WiFi de **2.4 GHz** (la ESP32 no conecta a 5 GHz) |
+| Red | WiFi de **2.4 GHz** |
 
-Los pines y el tiempo del botón están en `config.example.h`, no sueltos en el código.
+Los pines y el tiempo del botón están en `config.example.h`.
 
 ### Los dos puertos USB-C
 
