@@ -18,6 +18,7 @@ static Estado estadoActual = Estado::SinCodigo;
 static std::string mac12;
 static unsigned long inicioIntentoWifi = 0;
 static unsigned long reinicioPorFalloAt = 0;  // 0 = no programado
+static EstadoBoton boton;
 static unsigned intentosActivacion = 0;
 static unsigned long proximoIntentoAt = 0;
 
@@ -145,6 +146,8 @@ void setup() {
   almacen::iniciar();
   pantalla->iniciar();
   red::iniciarEventos();
+  pinMode(PIN_BOTON_RESET, INPUT_PULLUP);
+  iniciarBoton(boton, digitalRead(PIN_BOTON_RESET) == LOW);
   mac12 = dispositivo::mac12();
 
   Serial.println();
@@ -171,6 +174,11 @@ void loop() {
     case Estado::Conectando: atenderConectando(); break;
     case Estado::Activando: atenderActivando(); break;
     default: break;  // OPERATIVO: aqui iria el envio de lecturas (ver README); ERROR: espera reset/setcode
+  }
+  // Reset de emparejamiento: BOOT (GPIO0) mantenido BOTON_RESET_MS. Se revisa en todos los estados.
+  if (evaluarBoton(boton, digitalRead(PIN_BOTON_RESET) == LOW, millis(), BOTON_RESET_MS)) {
+    Serial.println("Boton BOOT mantenido: reset de emparejamiento.");
+    dispositivo::reiniciarEmparejamiento(false);
   }
   EstadoConsola ctx = {nombreEstado(estadoActual), red::conectado()};
   consola::atender(ctx);

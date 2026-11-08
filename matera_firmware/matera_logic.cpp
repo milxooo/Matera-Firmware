@@ -131,4 +131,29 @@ void parsearComando(const std::string& linea, std::string& comando, std::string&
   argumento = recortar(limpia.substr(corte));
 }
 
+void iniciarBoton(EstadoBoton& b, bool pulsadoAlArrancar) {
+  b = EstadoBoton();
+  b.esperarSoltar = pulsadoAlArrancar;
+}
+
+bool evaluarBoton(EstadoBoton& b, bool pulsado, unsigned long ahoraMs, unsigned long umbralMs) {
+  if (!pulsado) {
+    b.contando = false;
+    b.disparado = false;
+    b.esperarSoltar = false;
+    return false;
+  }
+  if (b.esperarSoltar || b.disparado) return false;
+  if (!b.contando) {
+    b.contando = true;
+    b.inicio = ahoraMs;
+    return false;
+  }
+  if (ahoraMs - b.inicio >= umbralMs) {  // la resta sin signo tolera el desbordamiento de millis()
+    b.disparado = true;
+    return true;
+  }
+  return false;
+}
+
 }  // namespace matera

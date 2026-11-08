@@ -51,4 +51,16 @@ bool extraerToken(const std::string& cuerpo, std::string& token, size_t maxLen =
 // Separa una línea de consola en comando (en minúsculas) y argumento (sin espacios extremos).
 void parsearComando(const std::string& linea, std::string& comando, std::string& argumento);
 
+// Detección de "mantener pulsado": se llama en cada vuelta del loop con el estado del botón.
+// Devuelve true UNA vez cuando se cumplió `umbralMs` de pulsación continua. Si el botón ya
+// estaba pulsado al arrancar (arranque con BOOT en bajo), hay que soltarlo antes de contar.
+struct EstadoBoton {
+  bool contando = false;
+  bool disparado = false;
+  bool esperarSoltar = false;
+  unsigned long inicio = 0;
+};
+void iniciarBoton(EstadoBoton& b, bool pulsadoAlArrancar);
+bool evaluarBoton(EstadoBoton& b, bool pulsado, unsigned long ahoraMs, unsigned long umbralMs);
+
 }  // namespace matera

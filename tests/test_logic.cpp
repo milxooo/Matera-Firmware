@@ -109,6 +109,42 @@ static void test_comando() {
   assert(c == "setbackend" && a == "http://x:1/a b");
 }
 
+static void test_boton() {
+  EstadoBoton b;
+  iniciarBoton(b, false);
+  assert(!evaluarBoton(b, false, 100, 5000));
+  assert(!evaluarBoton(b, true, 1000, 5000));   // empieza a contar
+  assert(!evaluarBoton(b, true, 5999, 5000));   // 4999 ms: aun no
+  assert(evaluarBoton(b, true, 6000, 5000));    // 5000 ms: dispara
+  assert(!evaluarBoton(b, true, 9000, 5000));   // solo una vez
+  assert(!evaluarBoton(b, false, 9100, 5000));  // al soltar se rearma
+  assert(!evaluarBoton(b, true, 9200, 5000));
+  assert(evaluarBoton(b, true, 14200, 5000));
+
+  // Soltar antes del umbral cancela la cuenta.
+  iniciarBoton(b, false);
+  assert(!evaluarBoton(b, true, 0, 5000));
+  assert(!evaluarBoton(b, true, 3000, 5000));
+  assert(!evaluarBoton(b, false, 3100, 5000));
+  assert(!evaluarBoton(b, true, 3200, 5000));
+  assert(!evaluarBoton(b, true, 7000, 5000));   // solo 3800 ms desde la nueva pulsacion
+  assert(evaluarBoton(b, true, 8200, 5000));
+
+  // Pulsado al arrancar: no cuenta hasta soltar y volver a pulsar.
+  iniciarBoton(b, true);
+  assert(!evaluarBoton(b, true, 0, 5000));
+  assert(!evaluarBoton(b, true, 10000, 5000));
+  assert(!evaluarBoton(b, false, 10100, 5000));
+  assert(!evaluarBoton(b, true, 10200, 5000));
+  assert(evaluarBoton(b, true, 15200, 5000));
+
+  // Desbordamiento de millis() (uint32 en la ESP32; aqui unsigned long de 64 bits no desborda,
+  // se prueba la aritmetica con un valor cercano al maximo de 32 bits).
+  iniciarBoton(b, false);
+  assert(!evaluarBoton(b, true, 4294967000UL, 5000));
+  assert(evaluarBoton(b, true, 4294967000UL + 5000UL, 5000));
+}
+
 int main() {
   test_codigo();
   test_url();
@@ -119,6 +155,7 @@ int main() {
   test_estados();
   test_token();
   test_comando();
+  test_boton();
   std::printf("OK: todas las pruebas de matera_logic pasaron\n");
   return 0;
 }
