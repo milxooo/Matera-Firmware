@@ -1,6 +1,7 @@
 // Firmware Matera (ESP32-S3): vinculación con el backend.
 // Estados: SIN_CODIGO -> PROVISIONING -> CONECTANDO -> ACTIVANDO -> OPERATIVO (+ ERROR).
 #include "config.h"
+#include "matera_activation.h"
 #include "matera_console.h"
 #include "matera_device.h"
 #include "matera_display.h"
@@ -17,6 +18,8 @@ static Estado estadoActual = Estado::SinCodigo;
 static std::string mac12;
 static unsigned long inicioIntentoWifi = 0;
 static unsigned long reinicioPorFalloAt = 0;  // 0 = no programado
+static unsigned intentosActivacion = 0;
+static unsigned long proximoIntentoAt = 0;
 
 static void cambiarEstado(Estado nuevo) {
   estadoActual = nuevo;
@@ -43,6 +46,19 @@ static void entrarEnProvisioning() {
   Serial.println("Da el WiFi con la app 'ESP BLE Provisioning' (PoP = codigo de emparejamiento).");
 }
 
+static void entrarEnActivando() {
+  intentosActivacion = 0;
+  proximoIntentoAt = millis();  // primer intento de inmediato
+  cambiarEstado(Estado::Activando);
+}
+
+// Tras conectar: ACTIVANDO si falta el token, OPERATIVO si ya existe.
+static void alConectar() {
+  Serial.println("WiFi conectado.");
+  if (estadoTrasConectar(almacen::tieneToken()) == Estado::Activando) entrarEnActivando();
+  else cambiarEstado(Estado::Operativo);
+}
+
 static void atenderProvisioning() {
   switch (red::tomarEventoProv()) {
     case red::EventoProv::CredencialesRecibidas: Serial.println("Provisioning: credenciales WiFi recibidas."); break;
@@ -58,16 +74,12 @@ static void atenderProvisioning() {
   if (reinicioPorFalloAt != 0 && static_cast<long>(millis() - reinicioPorFalloAt) >= 0) {
     dispositivo::reiniciarEmparejamiento(false);
   }
-  if (red::conectado()) {
-    Serial.println("WiFi conectado.");
-    cambiarEstado(estadoTrasConectar(almacen::tieneToken()));
-  }
+  if (red::conectado()) alConectar();
 }
 
 static void atenderConectando() {
   if (red::conectado()) {
-    Serial.println("WiFi conectado.");
-    cambiarEstado(estadoTrasConectar(almacen::tieneToken()));
+    alConectar();
     return;
   }
   if (millis() - inicioIntentoWifi >= WIFI_CONNECT_TIMEOUT_MS) {
@@ -75,6 +87,55 @@ static void atenderConectando() {
     Serial.println("Sin conexion WiFi todavia; reintentando (usa 'reset' para volver a emparejar).");
     inicioIntentoWifi = millis();
     red::reintentarConexion();
+  }
+}
+
+static void atenderActivando() {
+  if (!red::conectado()) {  // se cayo el WiFi: volver a conectar sin tocar credenciales
+    entrarEnConectando();
+    return;
+  }
+  if (static_cast<long>(millis() - proximoIntentoAt) < 0) return;
+
+  std::string cuerpo;
+  const int http = activacion::intentar(almacen::urlBackendActiva(), mac12, almacen::codigo(), cuerpo);
+  switch (decidirActivacion(http)) {
+    case AccionActivacion::GuardarToken: {
+      std::string token;
+      if (extraerToken(cuerpo, token) && almacen::guardarToken(token)) {
+        Serial.println("Activacion correcta: token de dispositivo guardado.");
+#if DEBUG_LOG_SECRETS
+        Serial.printf("[debug] token=%s\n", token.c_str());
+#endif
+        cambiarEstado(Estado::Operativo);
+        return;
+      }
+      // 200 con cuerpo inesperado o token demasiado largo: no tiene sentido reintentar igual.
+      Serial.println("ERROR: respuesta 200 sin un token valido (o supera 512 bytes).");
+      cambiarEstado(Estado::Error);
+      return;
+    }
+    case AccionActivacion::ErrorCodigoInvalido:
+      Serial.println("ERROR 404: el codigo no corresponde a esta MAC. Usa 'setcode <codigo>' o 'factory-reset'.");
+      cambiarEstado(Estado::Error);
+      return;
+    case AccionActivacion::ErrorFormato:
+      Serial.println("ERROR 400: el backend rechazo el formato de MAC/codigo (error de programacion).");
+      cambiarEstado(Estado::Error);
+      return;
+    case AccionActivacion::ErrorInesperado:
+      Serial.printf("ERROR: respuesta HTTP inesperada (%d). Revisa la URL del backend (status/setbackend).\n", http);
+      cambiarEstado(Estado::Error);
+      return;
+    case AccionActivacion::Reintentar: {
+      const unsigned long espera = esperaReintentoMs(intentosActivacion);
+      if (http == 409) Serial.printf("Matera aun no vinculada desde la app (409). Reintento en %lu s.\n", espera / 1000);
+      else if (http <= 0) Serial.printf("Sin respuesta del backend (error %d). Reintento en %lu s.\n", http, espera / 1000);
+      else Serial.printf("Backend respondio %d. Reintento en %lu s.\n", http, espera / 1000);
+      intentosActivacion++;
+      proximoIntentoAt = millis() + espera;
+      return;
+    }
   }
 }
 
@@ -108,7 +169,8 @@ void loop() {
   switch (estadoActual) {
     case Estado::Provisioning: atenderProvisioning(); break;
     case Estado::Conectando: atenderConectando(); break;
-    default: break;  // ACTIVANDO y OPERATIVO se agregan en las etapas siguientes
+    case Estado::Activando: atenderActivando(); break;
+    default: break;  // OPERATIVO: aqui iria el envio de lecturas (ver README); ERROR: espera reset/setcode
   }
   EstadoConsola ctx = {nombreEstado(estadoActual), red::conectado()};
   consola::atender(ctx);
